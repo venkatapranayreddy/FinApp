@@ -16,7 +16,9 @@ public class MassiveApiService : IMassiveApiService
 
     public MassiveApiService(IConfiguration configuration, ILogger<MassiveApiService> logger)
     {
-        _apiKey = configuration["Massive:ApiKey"]
+        // Check environment variable first, then fall back to config
+        _apiKey = Environment.GetEnvironmentVariable("MASSIVE_API_KEY")
+            ?? configuration["Massive:ApiKey"]
             ?? throw new ArgumentNullException("Massive:ApiKey configuration is missing");
         _logger = logger;
 

@@ -8,12 +8,17 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddOpenApi();
 
-// Configure CORS for Angular frontend
+// Configure CORS for Angular frontend (localhost + Vercel)
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowAngular", policy =>
+    options.AddPolicy("AllowFrontend", policy =>
     {
-        policy.WithOrigins("http://localhost:4200")
+        policy.WithOrigins(
+                "http://localhost:4200",
+                "https://finapp-client.vercel.app",
+                "https://*.vercel.app"
+              )
+              .SetIsOriginAllowedToAllowWildcardSubdomains()
               .AllowAnyHeader()
               .AllowAnyMethod();
     });
@@ -36,7 +41,7 @@ if (app.Environment.IsDevelopment())
     app.MapOpenApi();
 }
 
-app.UseCors("AllowAngular");
+app.UseCors("AllowFrontend");
 app.MapControllers();
 
 app.Run();

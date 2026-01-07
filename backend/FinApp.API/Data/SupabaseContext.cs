@@ -8,9 +8,12 @@ public class SupabaseContext
 
     public SupabaseContext(IConfiguration configuration)
     {
-        var url = configuration["Supabase:Url"]
+        // Check environment variables first, then fall back to config
+        var url = Environment.GetEnvironmentVariable("SUPABASE_URL")
+            ?? configuration["Supabase:Url"]
             ?? throw new ArgumentNullException("Supabase:Url configuration is missing");
-        var key = configuration["Supabase:Key"]
+        var key = Environment.GetEnvironmentVariable("SUPABASE_KEY")
+            ?? configuration["Supabase:Key"]
             ?? throw new ArgumentNullException("Supabase:Key configuration is missing");
 
         var options = new SupabaseOptions
