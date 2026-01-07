@@ -1,0 +1,8 @@
+[phases.build]
+cmds = ["dotnet publish -c Release -o out"]
+
+[start]
+cmd = "dotnet out/FinApp.API.dll"
+
+[variables]
+ASPNETCORE_URLS = "http://0.0.0.0:$PORT"
