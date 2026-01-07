@@ -1,0 +1,43 @@
+<mat-card class="stock-card" [class.profit-card]="stock.isProfit" [class.loss-card]="!stock.isProfit">
+  <mat-card-header>
+    <mat-card-title>{{ stock.ticker }}</mat-card-title>
+    <mat-card-subtitle>{{ stock.name }}</mat-card-subtitle>
+    <mat-chip class="exchange-chip">{{ stock.exchange }}</mat-chip>
+  </mat-card-header>
+
+  <mat-card-content>
+    <div class="performance-section">
+      <div class="percent-change" [class.profit]="stock.isProfit" [class.loss]="!stock.isProfit">
+        <span class="change-icon">{{ stock.isProfit ? '▲' : '▼' }}</span>
+        <span class="change-value">{{ stock.percentChange }}%</span>
+      </div>
+    </div>
+
+    <div class="price-details">
+      <div class="price-row">
+        <span class="label">Start Price:</span>
+        <span class="value">{{ formatCurrency(stock.startPrice) }}</span>
+      </div>
+      <div class="price-row">
+        <span class="label">End Price:</span>
+        <span class="value">{{ formatCurrency(stock.endPrice) }}</span>
+      </div>
+      <div class="price-row">
+        <span class="label">High:</span>
+        <span class="value">{{ formatCurrency(stock.highPrice) }}</span>
+      </div>
+      <div class="price-row">
+        <span class="label">Low:</span>
+        <span class="value">{{ formatCurrency(stock.lowPrice) }}</span>
+      </div>
+      <div class="price-row">
+        <span class="label">Volume:</span>
+        <span class="value">{{ formatNumber(stock.volume) }}</span>
+      </div>
+      <div class="price-row">
+        <span class="label">Market Cap:</span>
+        <span class="value">{{ formatMarketCap(stock.marketCap) }}</span>
+      </div>
+    </div>
+  </mat-card-content>
+</mat-card>

@@ -1,0 +1,31 @@
+<div class="stock-list-container">
+  @if (loading) {
+    <div class="loading-container">
+      <mat-spinner diameter="50"></mat-spinner>
+      <p>Loading stock data...</p>
+    </div>
+  } @else if (stocks.length === 0) {
+    <div class="empty-state">
+      <p>No stocks found. Apply filters to view stock performance.</p>
+    </div>
+  } @else {
+    <div class="results-header">
+      <h3>Found {{ totalCount }} stocks</h3>
+    </div>
+
+    <div class="card-grid">
+      @for (stock of stocks; track stock.ticker) {
+        <app-stock-card [stock]="stock"></app-stock-card>
+      }
+    </div>
+
+    <mat-paginator
+      [length]="totalCount"
+      [pageSize]="pageSize"
+      [pageIndex]="currentPage"
+      [pageSizeOptions]="[25, 50, 100]"
+      (page)="onPageChange($event)"
+      aria-label="Select page">
+    </mat-paginator>
+  }
+</div>

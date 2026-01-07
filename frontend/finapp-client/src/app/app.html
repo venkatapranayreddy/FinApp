@@ -1,0 +1,19 @@
+<mat-toolbar color="primary">
+  <span>FinApp - Stock Performance Tracker</span>
+</mat-toolbar>
+
+<div class="container">
+  <app-stock-filters
+    (filterChange)="onFilterChange($event)"
+    (syncRequest)="onSync()">
+  </app-stock-filters>
+
+  <app-stock-list
+    [stocks]="stocks"
+    [totalCount]="totalCount"
+    [pageSize]="pageSize"
+    [currentPage]="currentPage"
+    [loading]="loading"
+    (pageChange)="onPageChange($event)">
+  </app-stock-list>
+</div>
