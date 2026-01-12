@@ -7,7 +7,8 @@ namespace FinApp.API.Services;
 public class MassiveApiService : IMassiveApiService
 {
     private readonly HttpClient _httpClient;
-    private readonly string _apiKey;
+    private readonly string? _apiKey;
+    private readonly bool _isEnabled;
     private readonly ILogger<MassiveApiService> _logger;
     private const string BaseUrl = "https://api.polygon.io/v3";
     private const string BaseUrlV2 = "https://api.polygon.io/v2";
@@ -18,9 +19,14 @@ public class MassiveApiService : IMassiveApiService
     public MassiveApiService(IConfiguration configuration, ILogger<MassiveApiService> logger)
     {
         _apiKey = Environment.GetEnvironmentVariable("MASSIVE_API_KEY")
-            ?? configuration["Massive:ApiKey"]
-            ?? throw new ArgumentNullException("Massive:ApiKey configuration is missing");
+            ?? configuration["Massive:ApiKey"];
         _logger = logger;
+        _isEnabled = !string.IsNullOrEmpty(_apiKey);
+
+        if (!_isEnabled)
+        {
+            _logger.LogWarning("Polygon API key not configured. Market data features will return empty results.");
+        }
 
         _httpClient = new HttpClient();
     }
@@ -341,6 +347,12 @@ public class MassiveApiService : IMassiveApiService
 
     private async Task<HttpResponseMessage?> SendRequestWithRetryAsync(string url)
     {
+        if (!_isEnabled)
+        {
+            _logger.LogDebug("Polygon API disabled - skipping request to {Url}", url);
+            return null;
+        }
+
         try
         {
             var urlWithKey = AddApiKey(url);

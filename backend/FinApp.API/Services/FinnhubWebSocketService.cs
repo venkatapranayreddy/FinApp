@@ -22,15 +22,20 @@ public class FinnhubWebSocketService : IFinnhubWebSocketService, IDisposable
 {
     private readonly ILogger<FinnhubWebSocketService> _logger;
     private readonly IHubContext<MarketDataHub> _hubContext;
-    private readonly string _apiKey;
+    private readonly string? _apiKey;
+    private readonly bool _isEnabled;
     private ClientWebSocket? _webSocket;
     private CancellationTokenSource? _cts;
     private readonly ConcurrentDictionary<string, decimal> _latestPrices = new();
     private readonly ConcurrentDictionary<string, bool> _subscriptions = new();
     private readonly SemaphoreSlim _connectionLock = new(1, 1);
     private bool _isConnecting;
+    private int _reconnectAttempts;
+    private const int MaxReconnectAttempts = 5;
+    private bool _rateLimited;
+    private DateTime _rateLimitResetTime = DateTime.MinValue;
 
-    public bool IsConnected => _webSocket?.State == WebSocketState.Open;
+    public bool IsConnected => _isEnabled && !_rateLimited && _webSocket?.State == WebSocketState.Open;
     public event EventHandler<TradeData>? OnTradeReceived;
 
     public FinnhubWebSocketService(
@@ -41,12 +46,31 @@ public class FinnhubWebSocketService : IFinnhubWebSocketService, IDisposable
         _logger = logger;
         _hubContext = hubContext;
         _apiKey = configuration["Finnhub:ApiKey"]
-            ?? Environment.GetEnvironmentVariable("FINNHUB_API_KEY")
-            ?? throw new ArgumentNullException("Finnhub:ApiKey configuration is missing");
+            ?? Environment.GetEnvironmentVariable("FINNHUB_API_KEY");
+
+        _isEnabled = !string.IsNullOrEmpty(_apiKey);
+
+        if (!_isEnabled)
+        {
+            _logger.LogWarning("Finnhub API key not configured. Real-time WebSocket features disabled.");
+        }
     }
 
     public async Task ConnectAsync()
     {
+        if (!_isEnabled)
+        {
+            _logger.LogDebug("Finnhub WebSocket disabled - skipping connection");
+            return;
+        }
+
+        // Check if we're rate limited
+        if (_rateLimited && DateTime.UtcNow < _rateLimitResetTime)
+        {
+            _logger.LogDebug("Finnhub rate limited until {ResetTime}, skipping connection", _rateLimitResetTime);
+            return;
+        }
+
         await _connectionLock.WaitAsync();
         try
         {
@@ -62,6 +86,10 @@ public class FinnhubWebSocketService : IFinnhubWebSocketService, IDisposable
             await _webSocket.ConnectAsync(uri, _cts.Token);
             _logger.LogInformation("Connected to Finnhub WebSocket");
 
+            // Reset rate limit and reconnect tracking on successful connection
+            _rateLimited = false;
+            _reconnectAttempts = 0;
+
             // Start receiving messages
             _ = ReceiveMessagesAsync(_cts.Token);
 
@@ -71,10 +99,16 @@ public class FinnhubWebSocketService : IFinnhubWebSocketService, IDisposable
                 await SendSubscribeMessageAsync(symbol);
             }
         }
+        catch (WebSocketException ex) when (ex.Message.Contains("429"))
+        {
+            _rateLimited = true;
+            _rateLimitResetTime = DateTime.UtcNow.AddMinutes(5); // Wait 5 minutes before retry
+            _logger.LogWarning("Finnhub rate limited (429). Will retry after {ResetTime}", _rateLimitResetTime);
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to connect to Finnhub WebSocket");
-            throw;
+            // Don't throw - just log and continue without WebSocket
         }
         finally
         {
@@ -85,6 +119,8 @@ public class FinnhubWebSocketService : IFinnhubWebSocketService, IDisposable
 
     public async Task SubscribeAsync(string symbol)
     {
+        if (!_isEnabled) return;
+
         var upperSymbol = symbol.ToUpper();
 
         if (_subscriptions.TryAdd(upperSymbol, true))
@@ -234,8 +270,28 @@ public class FinnhubWebSocketService : IFinnhubWebSocketService, IDisposable
 
     private async Task ReconnectAsync()
     {
-        _logger.LogInformation("Attempting to reconnect to Finnhub WebSocket...");
-        await Task.Delay(5000); // Wait 5 seconds before reconnecting
+        // Check if we're rate limited
+        if (_rateLimited)
+        {
+            _logger.LogDebug("Skipping reconnect - rate limited until {ResetTime}", _rateLimitResetTime);
+            return;
+        }
+
+        // Check max reconnect attempts
+        if (_reconnectAttempts >= MaxReconnectAttempts)
+        {
+            _logger.LogWarning("Max reconnect attempts ({Max}) reached. Stopping reconnection.", MaxReconnectAttempts);
+            return;
+        }
+
+        _reconnectAttempts++;
+
+        // Exponential backoff: 5s, 10s, 20s, 40s, 80s
+        var delay = TimeSpan.FromSeconds(5 * Math.Pow(2, _reconnectAttempts - 1));
+        _logger.LogInformation("Reconnect attempt {Attempt}/{Max} in {Delay}s...",
+            _reconnectAttempts, MaxReconnectAttempts, delay.TotalSeconds);
+
+        await Task.Delay(delay);
 
         try
         {
@@ -245,8 +301,13 @@ public class FinnhubWebSocketService : IFinnhubWebSocketService, IDisposable
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to reconnect, will retry...");
-            _ = ReconnectAsync(); // Keep trying
+            _logger.LogError(ex, "Failed to reconnect (attempt {Attempt}/{Max})",
+                _reconnectAttempts, MaxReconnectAttempts);
+
+            if (_reconnectAttempts < MaxReconnectAttempts && !_rateLimited)
+            {
+                _ = ReconnectAsync();
+            }
         }
     }
 
