@@ -1,92 +1,31 @@
 import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { RouterModule, RouterOutlet } from '@angular/router';
 import { MatToolbarModule } from '@angular/material/toolbar';
-import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
-import { PageEvent } from '@angular/material/paginator';
-import { StockFiltersComponent } from './components/stock-filters/stock-filters.component';
-import { StockListComponent } from './components/stock-list/stock-list.component';
-import { StockService } from './services/stock.service';
-import { FilterRequest, StockPerformance } from './models/stock.model';
+import { MatButtonModule } from '@angular/material/button';
+import { MatIconModule } from '@angular/material/icon';
+import { MatTabsModule } from '@angular/material/tabs';
 
 @Component({
   selector: 'app-root',
   standalone: true,
   imports: [
     CommonModule,
+    RouterModule,
+    RouterOutlet,
     MatToolbarModule,
-    MatSnackBarModule,
-    StockFiltersComponent,
-    StockListComponent
+    MatButtonModule,
+    MatIconModule,
+    MatTabsModule
   ],
   templateUrl: './app.html',
   styleUrl: './app.scss'
 })
 export class App {
-  stocks: StockPerformance[] = [];
-  totalCount: number = 0;
-  pageSize: number = 50;
-  currentPage: number = 0;
-  loading: boolean = false;
-  currentFilter: FilterRequest | null = null;
-
-  constructor(
-    private stockService: StockService,
-    private snackBar: MatSnackBar
-  ) {}
-
-  onFilterChange(filter: FilterRequest): void {
-    this.currentFilter = filter;
-    this.currentPage = 0;
-    this.loadStocks();
-  }
-
-  onPageChange(event: PageEvent): void {
-    this.currentPage = event.pageIndex;
-    this.pageSize = event.pageSize;
-
-    if (this.currentFilter) {
-      this.currentFilter.page = event.pageIndex + 1;
-      this.currentFilter.pageSize = event.pageSize;
-      this.loadStocks();
-    }
-  }
-
-  onSync(): void {
-    this.loading = true;
-    this.stockService.syncStocks().subscribe({
-      next: (result) => {
-        this.loading = false;
-        this.snackBar.open(`Synced ${result.syncedCount} stocks successfully!`, 'Close', {
-          duration: 3000
-        });
-      },
-      error: (err) => {
-        this.loading = false;
-        this.snackBar.open('Failed to sync stocks. Please try again.', 'Close', {
-          duration: 3000
-        });
-        console.error('Sync error:', err);
-      }
-    });
-  }
-
-  private loadStocks(): void {
-    if (!this.currentFilter) return;
-
-    this.loading = true;
-    this.stockService.getStockPerformance(this.currentFilter).subscribe({
-      next: (response) => {
-        this.stocks = response.data;
-        this.totalCount = response.totalCount;
-        this.loading = false;
-      },
-      error: (err) => {
-        this.loading = false;
-        this.snackBar.open('Failed to load stock data. Please try again.', 'Close', {
-          duration: 3000
-        });
-        console.error('Load error:', err);
-      }
-    });
-  }
+  navLinks = [
+    { path: '/dashboard', label: 'Market Dashboard', icon: 'dashboard' },
+    { path: '/performance', label: 'Stock Performance', icon: 'trending_up' },
+    { path: '/portfolio', label: 'Portfolio', icon: 'account_balance_wallet' },
+    { path: '/options-scanner', label: 'Options Scanner', icon: 'radar' }
+  ];
 }

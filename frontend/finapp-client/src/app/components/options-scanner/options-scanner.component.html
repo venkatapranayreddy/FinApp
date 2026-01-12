@@ -1,0 +1,246 @@
+<div class="scanner-container">
+  <!-- Header -->
+  <div class="scanner-header">
+    <div class="header-content">
+      <h1>Unusual Options Activity Scanner</h1>
+      <p class="subtitle">Stocks with abnormally high options volume compared to 30-day average</p>
+    </div>
+    <div class="header-actions">
+      <button mat-stroked-button (click)="loadData()" [disabled]="loading">
+        <mat-icon>refresh</mat-icon> Refresh
+      </button>
+      <mat-slide-toggle [(ngModel)]="autoRefresh" (change)="toggleAutoRefresh()">
+        Auto-refresh
+      </mat-slide-toggle>
+    </div>
+  </div>
+
+  <!-- Stats Cards -->
+  <div class="stats-cards" *ngIf="stats">
+    <mat-card class="stat-card">
+      <mat-card-content>
+        <div class="stat-value">{{ stats.totalSymbols }}</div>
+        <div class="stat-label">Total Symbols</div>
+      </mat-card-content>
+    </mat-card>
+    <mat-card class="stat-card bullish">
+      <mat-card-content>
+        <div class="stat-value">
+          <mat-icon>trending_up</mat-icon>
+          {{ stats.bullishCount }}
+        </div>
+        <div class="stat-label">Bullish</div>
+        <div class="stat-sub" *ngIf="stats.topBullishSymbol">Top: {{ stats.topBullishSymbol }}</div>
+      </mat-card-content>
+    </mat-card>
+    <mat-card class="stat-card bearish">
+      <mat-card-content>
+        <div class="stat-value">
+          <mat-icon>trending_down</mat-icon>
+          {{ stats.bearishCount }}
+        </div>
+        <div class="stat-label">Bearish</div>
+        <div class="stat-sub" *ngIf="stats.topBearishSymbol">Top: {{ stats.topBearishSymbol }}</div>
+      </mat-card-content>
+    </mat-card>
+    <mat-card class="stat-card">
+      <mat-card-content>
+        <div class="stat-value">{{ formatPercent(stats.avgVolumeChangePercent, 0) }}</div>
+        <div class="stat-label">Avg Vol Change</div>
+      </mat-card-content>
+    </mat-card>
+  </div>
+
+  <!-- Filters -->
+  <mat-card class="filters-card">
+    <mat-card-content>
+      <div class="filters-row">
+        <mat-form-field appearance="outline">
+          <mat-label>Directional Bias</mat-label>
+          <mat-select [(ngModel)]="biasFilter" (selectionChange)="onFilterChange()">
+            <mat-option value="">All</mat-option>
+            <mat-option value="Bullish">Bullish</mat-option>
+            <mat-option value="Bearish">Bearish</mat-option>
+            <mat-option value="Neutral">Neutral</mat-option>
+          </mat-select>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Market Cap</mat-label>
+          <mat-select [(ngModel)]="capFilter" (selectionChange)="onFilterChange()">
+            <mat-option value="">All</mat-option>
+            <mat-option value="SmallCap">Small Cap</mat-option>
+            <mat-option value="MidCap">Mid Cap</mat-option>
+            <mat-option value="LargeCap">Large Cap</mat-option>
+            <mat-option value="MegaCap">Mega Cap</mat-option>
+          </mat-select>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Min Volume</mat-label>
+          <mat-select [(ngModel)]="minVolume" (selectionChange)="onFilterChange()">
+            <mat-option [value]="1000">1K+</mat-option>
+            <mat-option [value]="5000">5K+</mat-option>
+            <mat-option [value]="10000">10K+</mat-option>
+            <mat-option [value]="50000">50K+</mat-option>
+            <mat-option [value]="100000">100K+</mat-option>
+          </mat-select>
+        </mat-form-field>
+
+        <mat-slide-toggle [(ngModel)]="highIVOnly" (change)="onFilterChange()">
+          High IV Only (50%+)
+        </mat-slide-toggle>
+
+        <button mat-button (click)="clearFilters()">
+          <mat-icon>clear_all</mat-icon> Clear
+        </button>
+      </div>
+      <div class="last-updated" *ngIf="lastUpdated">
+        Last updated: {{ lastUpdated | date:'short' }}
+      </div>
+    </mat-card-content>
+  </mat-card>
+
+  <!-- Data Table -->
+  <mat-card class="table-card">
+    <mat-card-content>
+      <div *ngIf="loading" class="loading-container">
+        <mat-spinner diameter="40"></mat-spinner>
+        <span>Loading options data...</span>
+      </div>
+
+      <div class="table-container" *ngIf="!loading">
+        <table mat-table [dataSource]="dataSource" matSort (matSortChange)="onSortChange($event)">
+
+          <!-- Symbol Column -->
+          <ng-container matColumnDef="symbol">
+            <th mat-header-cell *matHeaderCellDef mat-sort-header>Symbol</th>
+            <td mat-cell *matCellDef="let row">
+              <div class="symbol-cell">
+                <span class="symbol">{{ row.symbol }}</span>
+                <span class="company-name">{{ row.companyName }}</span>
+              </div>
+            </td>
+          </ng-container>
+
+          <!-- Last Price Column -->
+          <ng-container matColumnDef="lastPrice">
+            <th mat-header-cell *matHeaderCellDef mat-sort-header>Price</th>
+            <td mat-cell *matCellDef="let row">{{ formatCurrency(row.lastPrice) }}</td>
+          </ng-container>
+
+          <!-- Price Change Column -->
+          <ng-container matColumnDef="priceChangePercent">
+            <th mat-header-cell *matHeaderCellDef mat-sort-header>Change</th>
+            <td mat-cell *matCellDef="let row" [ngClass]="getPriceChangeClass(row.priceChangePercent)">
+              {{ row.priceChangePercent >= 0 ? '+' : '' }}{{ formatPercent(row.priceChangePercent) }}
+            </td>
+          </ng-container>
+
+          <!-- Options Volume Column -->
+          <ng-container matColumnDef="totalOptionsVolume">
+            <th mat-header-cell *matHeaderCellDef mat-sort-header>Opts Vol</th>
+            <td mat-cell *matCellDef="let row">{{ formatNumber(row.totalOptionsVolume) }}</td>
+          </ng-container>
+
+          <!-- Volume Change Column (KEY METRIC) -->
+          <ng-container matColumnDef="volumeChangePercent">
+            <th mat-header-cell *matHeaderCellDef mat-sort-header>
+              Vol % Chg
+              <mat-icon matTooltip="Today's volume vs 30-day average">info</mat-icon>
+            </th>
+            <td mat-cell *matCellDef="let row">
+              <span class="volume-change" [ngClass]="getVolumeChangeClass(row.volumeChangePercent)">
+                {{ formatPercent(row.volumeChangePercent, 0) }}
+              </span>
+            </td>
+          </ng-container>
+
+          <!-- Call Volume Column -->
+          <ng-container matColumnDef="callVolume">
+            <th mat-header-cell *matHeaderCellDef mat-sort-header>Calls</th>
+            <td mat-cell *matCellDef="let row" class="call-volume">
+              {{ formatNumber(row.callVolume) }}
+            </td>
+          </ng-container>
+
+          <!-- Put Volume Column -->
+          <ng-container matColumnDef="putVolume">
+            <th mat-header-cell *matHeaderCellDef mat-sort-header>Puts</th>
+            <td mat-cell *matCellDef="let row" class="put-volume">
+              {{ formatNumber(row.putVolume) }}
+            </td>
+          </ng-container>
+
+          <!-- Put/Call Ratio Column -->
+          <ng-container matColumnDef="putCallRatio">
+            <th mat-header-cell *matHeaderCellDef mat-sort-header>P/C Ratio</th>
+            <td mat-cell *matCellDef="let row">{{ formatRatio(row.putCallRatio) }}</td>
+          </ng-container>
+
+          <!-- IV Column -->
+          <ng-container matColumnDef="impliedVolatility">
+            <th mat-header-cell *matHeaderCellDef mat-sort-header>IV</th>
+            <td mat-cell *matCellDef="let row" [ngClass]="getIVClass(row.impliedVolatility)">
+              {{ formatPercent(row.impliedVolatility, 0) }}
+            </td>
+          </ng-container>
+
+          <!-- Bias Column -->
+          <ng-container matColumnDef="bias">
+            <th mat-header-cell *matHeaderCellDef>Bias</th>
+            <td mat-cell *matCellDef="let row">
+              <mat-chip [ngClass]="getBiasClass(row.bias)">
+                <mat-icon>{{ getBiasIcon(row.bias) }}</mat-icon>
+                {{ row.biasLabel }}
+              </mat-chip>
+            </td>
+          </ng-container>
+
+          <!-- Actions Column -->
+          <ng-container matColumnDef="actions">
+            <th mat-header-cell *matHeaderCellDef></th>
+            <td mat-cell *matCellDef="let row">
+              <button mat-stroked-button color="primary" (click)="openDetails(row)">
+                Details
+              </button>
+            </td>
+          </ng-container>
+
+          <tr mat-header-row *matHeaderRowDef="displayedColumns; sticky: true"></tr>
+          <tr mat-row *matRowDef="let row; columns: displayedColumns" [ngClass]="getRowClass(row)"></tr>
+        </table>
+
+        <div *ngIf="dataSource.data.length === 0" class="no-data">
+          <mat-icon>search_off</mat-icon>
+          <p>No unusual options activity found matching your filters.</p>
+        </div>
+      </div>
+
+      <mat-paginator
+        [length]="totalCount"
+        [pageSize]="pageSize"
+        [pageIndex]="pageIndex"
+        [pageSizeOptions]="[10, 25, 50, 100]"
+        (page)="onPageChange($event)"
+        showFirstLastButtons>
+      </mat-paginator>
+    </mat-card-content>
+  </mat-card>
+
+  <!-- Legend -->
+  <div class="legend">
+    <div class="legend-item">
+      <span class="legend-color bullish"></span>
+      <span>Bullish (Call heavy)</span>
+    </div>
+    <div class="legend-item">
+      <span class="legend-color bearish"></span>
+      <span>Bearish (Put heavy)</span>
+    </div>
+    <div class="legend-item">
+      <span class="legend-color extreme"></span>
+      <span>Extreme Activity (5x+ normal)</span>
+    </div>
+  </div>
+</div>

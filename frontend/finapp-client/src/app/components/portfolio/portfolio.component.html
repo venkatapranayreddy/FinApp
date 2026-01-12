@@ -1,0 +1,330 @@
+<div class="portfolio-container">
+  <!-- Header -->
+  <div class="portfolio-header">
+    <div class="header-content">
+      <h1>Portfolio Risk Calculator</h1>
+      <p class="subtitle">3-5-7 Rule: Max 3% risk per trade, 5% sector exposure, 7% total portfolio risk</p>
+    </div>
+    <div class="connection-status" [ngClass]="getConnectionStatusClass()">
+      <span class="status-dot"></span>
+      <span class="status-text">{{ isRealtime ? 'Live' : connectionStatus }}</span>
+    </div>
+  </div>
+
+  <!-- Portfolio Value Setting -->
+  <mat-card class="settings-card">
+    <mat-card-content>
+      <div class="portfolio-value-input">
+        <mat-form-field appearance="outline">
+          <mat-label>Portfolio Value</mat-label>
+          <input
+            matInput
+            type="number"
+            [(ngModel)]="portfolioValue"
+            min="1000"
+            step="1000"
+          />
+          <span matPrefix>$&nbsp;</span>
+          <mat-hint>Your total portfolio value for risk calculations</mat-hint>
+        </mat-form-field>
+        <div class="risk-limits">
+          <span class="limit-item">
+            <span class="limit-label">Max Risk/Trade (3%):</span>
+            <span class="limit-value">{{ formatCurrency(portfolioValue * 0.03) }}</span>
+          </span>
+          <span class="limit-item">
+            <span class="limit-label">Max Sector (5%):</span>
+            <span class="limit-value">{{ formatCurrency(portfolioValue * 0.05) }}</span>
+          </span>
+          <span class="limit-item">
+            <span class="limit-label">Max Total (7%):</span>
+            <span class="limit-value">{{ formatCurrency(portfolioValue * 0.07) }}</span>
+          </span>
+        </div>
+      </div>
+    </mat-card-content>
+  </mat-card>
+
+  <!-- Portfolio Summary -->
+  <div class="summary-cards" *ngIf="portfolio">
+    <mat-card class="summary-card">
+      <mat-card-content>
+        <div class="summary-label">Portfolio Value</div>
+        <div class="summary-value">{{ formatCurrency(portfolioValue) }}</div>
+      </mat-card-content>
+    </mat-card>
+    <mat-card class="summary-card">
+      <mat-card-content>
+        <div class="summary-label">Max Risk/Trade (3%)</div>
+        <div class="summary-value">{{ formatCurrency(portfolioValue * 0.03) }}</div>
+      </mat-card-content>
+    </mat-card>
+    <mat-card class="summary-card">
+      <mat-card-content>
+        <div class="summary-label">Current Total Risk</div>
+        <div class="summary-value" [ngClass]="getRiskClass(portfolio.currentTotalRiskPercent)">
+          {{ formatCurrency(portfolio.currentTotalRisk) }}
+          <span class="risk-percent">({{ formatPercent(portfolio.currentTotalRiskPercent) }})</span>
+        </div>
+      </mat-card-content>
+    </mat-card>
+    <mat-card class="summary-card">
+      <mat-card-content>
+        <div class="summary-label">Unrealized P&L</div>
+        <div class="summary-value" [ngClass]="portfolio.totalUnrealizedPnL >= 0 ? 'positive' : 'negative'">
+          {{ formatCurrency(portfolio.totalUnrealizedPnL) }}
+        </div>
+      </mat-card-content>
+    </mat-card>
+  </div>
+
+  <!-- Add Trade Form -->
+  <mat-card class="add-trade-card">
+    <mat-card-header>
+      <mat-card-title>Add New Trade</mat-card-title>
+      <mat-card-subtitle>Enter trade details to calculate risk and position size</mat-card-subtitle>
+    </mat-card-header>
+    <mat-card-content>
+      <div class="trade-form">
+        <!-- Ticker Input Row -->
+        <div class="form-row ticker-row">
+          <mat-form-field appearance="outline" class="ticker-field">
+            <mat-label>Ticker Symbol</mat-label>
+            <input
+              matInput
+              [(ngModel)]="ticker"
+              (ngModelChange)="onTickerChange()"
+              placeholder="e.g., AAPL"
+              style="text-transform: uppercase"
+            />
+            <mat-icon matSuffix *ngIf="loadingPrice">
+              <mat-spinner diameter="20"></mat-spinner>
+            </mat-icon>
+          </mat-form-field>
+
+          <!-- Company Info Display (outside input) -->
+          <div class="ticker-info" *ngIf="currentPrice !== null">
+            <div class="company-name">{{ companyName }}</div>
+            <div class="price-display">
+              <span class="price-value">{{ formatCurrency(currentPrice) }}</span>
+              <span class="exchange-badge" *ngIf="exchange">{{ exchange }}</span>
+            </div>
+          </div>
+          <div class="ticker-info loading" *ngIf="loadingPrice">
+            <div class="loading-text">Fetching price...</div>
+          </div>
+        </div>
+
+        <!-- Trade Details Row -->
+        <div class="form-row">
+          <!-- Stop Loss -->
+          <mat-form-field appearance="outline">
+            <mat-label>Stop Loss Price</mat-label>
+            <input
+              matInput
+              type="number"
+              [(ngModel)]="stopLossPrice"
+              (ngModelChange)="onStopLossChange()"
+              step="0.01"
+            />
+            <span matPrefix>$&nbsp;</span>
+          </mat-form-field>
+
+          <!-- Target Price -->
+          <mat-form-field appearance="outline">
+            <mat-label>Target Price (Profit Exit)</mat-label>
+            <input
+              matInput
+              type="number"
+              [(ngModel)]="targetPrice"
+              step="0.01"
+            />
+            <span matPrefix>$&nbsp;</span>
+          </mat-form-field>
+
+          <!-- Shares Input -->
+          <mat-form-field appearance="outline" class="shares-field">
+            <mat-label>Number of Shares</mat-label>
+            <input
+              matInput
+              type="number"
+              [(ngModel)]="shares"
+              min="1"
+            />
+          </mat-form-field>
+
+          <!-- Notes -->
+          <mat-form-field appearance="outline" class="notes-field">
+            <mat-label>Notes (Optional)</mat-label>
+            <input matInput [(ngModel)]="notes" />
+          </mat-form-field>
+        </div>
+
+        <!-- Position Size Calculator Results -->
+        <div class="calc-results" *ngIf="positionSizeCalc">
+          <mat-divider></mat-divider>
+          <h4>Position Size Calculator (3% Rule)</h4>
+          <div class="calc-grid">
+            <div class="calc-item">
+              <span class="calc-label">Risk Per Share:</span>
+              <span class="calc-value">{{ formatCurrency(positionSizeCalc.riskPerShare) }}</span>
+            </div>
+            <div class="calc-item">
+              <span class="calc-label">Max Risk Amount (3%):</span>
+              <span class="calc-value">{{ formatCurrency(positionSizeCalc.maxRiskAmount) }}</span>
+            </div>
+            <div class="calc-item">
+              <span class="calc-label">Recommended Shares:</span>
+              <span class="calc-value highlight">{{ positionSizeCalc.recommendedShares }}</span>
+            </div>
+            <div class="calc-item">
+              <span class="calc-label">Position Value:</span>
+              <span class="calc-value">{{ formatCurrency(positionSizeCalc.positionValue) }}</span>
+            </div>
+            <div class="calc-item">
+              <span class="calc-label">Actual Risk:</span>
+              <span class="calc-value" [ngClass]="getRiskClass(positionSizeCalc.riskPercentOfPortfolio)">
+                {{ formatCurrency(positionSizeCalc.actualRiskAmount) }}
+                ({{ formatPercent(positionSizeCalc.riskPercentOfPortfolio) }})
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-actions">
+          <button mat-stroked-button (click)="resetForm()">
+            <mat-icon>clear</mat-icon> Clear
+          </button>
+          <button
+            mat-raised-button
+            color="primary"
+            (click)="addTrade()"
+            [disabled]="addingTrade || !ticker || !shares || !stopLossPrice || !targetPrice"
+          >
+            <mat-icon>add</mat-icon>
+            {{ addingTrade ? 'Adding...' : 'Add Trade' }}
+          </button>
+        </div>
+      </div>
+    </mat-card-content>
+  </mat-card>
+
+  <!-- Trade Journal -->
+  <mat-card class="journal-card">
+    <mat-card-header>
+      <mat-card-title>Trade Journal</mat-card-title>
+      <mat-card-subtitle>
+        {{ portfolio?.totalOpenTrades || 0 }} open trades |
+        <span class="positive">{{ portfolio?.tradesInProfit || 0 }} in profit</span> |
+        <span class="negative">{{ portfolio?.tradesInLoss || 0 }} in loss</span>
+      </mat-card-subtitle>
+    </mat-card-header>
+    <mat-card-content>
+      <div *ngIf="loadingTrades" class="loading-container">
+        <mat-spinner diameter="40"></mat-spinner>
+      </div>
+
+      <table
+        *ngIf="!loadingTrades && portfolio?.trades?.length"
+        mat-table
+        [dataSource]="portfolio!.trades"
+        class="trades-table"
+      >
+        <!-- Ticker Column -->
+        <ng-container matColumnDef="ticker">
+          <th mat-header-cell *matHeaderCellDef>Ticker</th>
+          <td mat-cell *matCellDef="let trade" [ngClass]="getStatusClass(trade)">
+            <strong>{{ trade.ticker }}</strong>
+          </td>
+        </ng-container>
+
+        <!-- Shares Column -->
+        <ng-container matColumnDef="shares">
+          <th mat-header-cell *matHeaderCellDef>Shares</th>
+          <td mat-cell *matCellDef="let trade">{{ trade.shares }}</td>
+        </ng-container>
+
+        <!-- Entry Price Column -->
+        <ng-container matColumnDef="entryPrice">
+          <th mat-header-cell *matHeaderCellDef>Entry</th>
+          <td mat-cell *matCellDef="let trade">{{ formatCurrency(trade.entryPrice) }}</td>
+        </ng-container>
+
+        <!-- Current Price Column -->
+        <ng-container matColumnDef="currentPrice">
+          <th mat-header-cell *matHeaderCellDef>Current</th>
+          <td mat-cell *matCellDef="let trade">{{ formatCurrency(trade.currentPrice) }}</td>
+        </ng-container>
+
+        <!-- Stop Loss Column -->
+        <ng-container matColumnDef="stopLoss">
+          <th mat-header-cell *matHeaderCellDef>Stop Loss</th>
+          <td mat-cell *matCellDef="let trade" class="stop-loss">
+            {{ formatCurrency(trade.stopLossPrice) }}
+          </td>
+        </ng-container>
+
+        <!-- Target Column -->
+        <ng-container matColumnDef="target">
+          <th mat-header-cell *matHeaderCellDef>Target</th>
+          <td mat-cell *matCellDef="let trade" class="target">
+            {{ formatCurrency(trade.targetPrice) }}
+          </td>
+        </ng-container>
+
+        <!-- P&L Column -->
+        <ng-container matColumnDef="pnl">
+          <th mat-header-cell *matHeaderCellDef>P&L</th>
+          <td mat-cell *matCellDef="let trade" [ngClass]="trade.unrealizedPnL >= 0 ? 'positive' : 'negative'">
+            {{ formatCurrency(trade.unrealizedPnL) }}
+            <small>({{ formatPercent(trade.unrealizedPnLPercent) }})</small>
+          </td>
+        </ng-container>
+
+        <!-- Risk/Reward Column -->
+        <ng-container matColumnDef="riskReward">
+          <th mat-header-cell *matHeaderCellDef>R:R</th>
+          <td mat-cell *matCellDef="let trade">
+            1:{{ trade.riskRewardRatio.toFixed(2) }}
+          </td>
+        </ng-container>
+
+        <!-- Status Column -->
+        <ng-container matColumnDef="status">
+          <th mat-header-cell *matHeaderCellDef>Status</th>
+          <td mat-cell *matCellDef="let trade">
+            <mat-chip [ngClass]="getStatusClass(trade)">
+              {{ trade.status }}
+            </mat-chip>
+          </td>
+        </ng-container>
+
+        <!-- Actions Column -->
+        <ng-container matColumnDef="actions">
+          <th mat-header-cell *matHeaderCellDef>Actions</th>
+          <td mat-cell *matCellDef="let trade">
+            <button mat-icon-button matTooltip="Close Trade" (click)="closeTrade(trade)">
+              <mat-icon>check_circle</mat-icon>
+            </button>
+            <button mat-icon-button matTooltip="Delete Trade" (click)="deleteTrade(trade)" color="warn">
+              <mat-icon>delete</mat-icon>
+            </button>
+          </td>
+        </ng-container>
+
+        <tr mat-header-row *matHeaderRowDef="tradeColumns"></tr>
+        <tr mat-row *matRowDef="let row; columns: tradeColumns" [ngClass]="getStatusClass(row)"></tr>
+      </table>
+
+      <div *ngIf="!loadingTrades && (!portfolio?.trades || portfolio?.trades?.length === 0)" class="no-trades">
+        <mat-icon>inventory_2</mat-icon>
+        <p>No trades in your journal yet. Add a trade to get started!</p>
+      </div>
+    </mat-card-content>
+    <mat-card-actions>
+      <button mat-button (click)="loadTrades()">
+        <mat-icon>refresh</mat-icon> Refresh
+      </button>
+    </mat-card-actions>
+  </mat-card>
+</div>

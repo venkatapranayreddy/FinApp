@@ -1,0 +1,147 @@
+<div class="market-dashboard">
+  <!-- Header Section -->
+  <div class="dashboard-header">
+    <h1>Market Dashboard</h1>
+    <div class="search-section">
+      <mat-form-field appearance="outline" class="search-field">
+        <mat-label>Search Ticker</mat-label>
+        <input
+          matInput
+          [(ngModel)]="searchTicker"
+          placeholder="e.g., AAPL, MSFT, GOOGL"
+          (keyup.enter)="searchStock()"
+        />
+        <mat-icon matSuffix>search</mat-icon>
+      </mat-form-field>
+      <button mat-raised-button color="primary" (click)="searchStock()">
+        Search
+      </button>
+    </div>
+  </div>
+
+  <!-- Charts Section -->
+  <div class="charts-section">
+    <div class="section-header">
+      <h2>Charts for {{ selectedTicker }}</h2>
+      <button mat-stroked-button (click)="loadAllData()">
+        <mat-icon>refresh</mat-icon> Refresh All
+      </button>
+    </div>
+
+    <!-- Price Chart with Moving Averages -->
+    <div class="chart-row">
+      <div *ngIf="loadingAggregates || loadingIndicators" class="chart-loading">
+        <mat-spinner diameter="40"></mat-spinner>
+        <span>Loading chart data...</span>
+      </div>
+      <app-price-chart
+        *ngIf="!loadingAggregates && aggregates.length > 0"
+        [title]="selectedTicker + ' Price Chart'"
+        [subtitle]="'30-Day OHLC with Moving Averages'"
+        [priceData]="aggregates"
+        [smaData]="smaData"
+        [emaData]="emaData"
+        [smaWindow]="smaWindow"
+        [emaWindow]="emaWindow"
+        [height]="400"
+      ></app-price-chart>
+      <div *ngIf="!loadingAggregates && aggregates.length === 0" class="no-chart-data">
+        <mat-icon>show_chart</mat-icon>
+        <p>No price data available. Click "Refresh All" to fetch chart data.</p>
+      </div>
+    </div>
+
+    <!-- Indicator Charts Row -->
+    <div class="chart-row indicators-row">
+      <!-- RSI Chart -->
+      <div class="indicator-chart-container">
+        <div *ngIf="loadingIndicators" class="chart-loading small">
+          <mat-spinner diameter="30"></mat-spinner>
+        </div>
+        <app-rsi-chart
+          *ngIf="!loadingIndicators && rsiData.length > 0"
+          [title]="'RSI (' + rsiWindow + ')'"
+          [rsiData]="rsiData"
+          [height]="200"
+        ></app-rsi-chart>
+        <div *ngIf="!loadingIndicators && rsiData.length === 0" class="no-chart-data small">
+          <mat-icon>analytics</mat-icon>
+          <p>No RSI data</p>
+        </div>
+      </div>
+
+      <!-- MACD Chart -->
+      <div class="indicator-chart-container">
+        <div *ngIf="loadingIndicators" class="chart-loading small">
+          <mat-spinner diameter="30"></mat-spinner>
+        </div>
+        <app-macd-chart
+          *ngIf="!loadingIndicators && macdData.length > 0"
+          [title]="'MACD (12, 26, 9)'"
+          [macdData]="macdData"
+          [height]="200"
+        ></app-macd-chart>
+        <div *ngIf="!loadingIndicators && macdData.length === 0" class="no-chart-data small">
+          <mat-icon>analytics</mat-icon>
+          <p>No MACD data</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Price History Table -->
+  <mat-card class="data-tabs-card">
+    <mat-card-header>
+      <mat-card-title>Price History</mat-card-title>
+      <mat-card-subtitle>30-Day Historical Data for {{ selectedTicker }}</mat-card-subtitle>
+    </mat-card-header>
+    <mat-card-content>
+      <div class="tab-content">
+        <div class="tab-header">
+          <button mat-stroked-button (click)="loadAggregates()">
+            <mat-icon>refresh</mat-icon> Refresh
+          </button>
+        </div>
+        <div *ngIf="loadingAggregates" class="loading-container">
+          <mat-spinner diameter="40"></mat-spinner>
+        </div>
+        <table
+          *ngIf="!loadingAggregates && aggregates.length > 0"
+          mat-table
+          [dataSource]="aggregates"
+          class="data-table"
+        >
+          <ng-container matColumnDef="date">
+            <th mat-header-cell *matHeaderCellDef>Date</th>
+            <td mat-cell *matCellDef="let bar">{{ formatDate(bar.t) }}</td>
+          </ng-container>
+          <ng-container matColumnDef="open">
+            <th mat-header-cell *matHeaderCellDef>Open</th>
+            <td mat-cell *matCellDef="let bar">${{ formatPrice(bar.o) }}</td>
+          </ng-container>
+          <ng-container matColumnDef="high">
+            <th mat-header-cell *matHeaderCellDef>High</th>
+            <td mat-cell *matCellDef="let bar">${{ formatPrice(bar.h) }}</td>
+          </ng-container>
+          <ng-container matColumnDef="low">
+            <th mat-header-cell *matHeaderCellDef>Low</th>
+            <td mat-cell *matCellDef="let bar">${{ formatPrice(bar.l) }}</td>
+          </ng-container>
+          <ng-container matColumnDef="close">
+            <th mat-header-cell *matHeaderCellDef>Close</th>
+            <td mat-cell *matCellDef="let bar">${{ formatPrice(bar.c) }}</td>
+          </ng-container>
+          <ng-container matColumnDef="volume">
+            <th mat-header-cell *matHeaderCellDef>Volume</th>
+            <td mat-cell *matCellDef="let bar">{{ formatVolume(bar.v) }}</td>
+          </ng-container>
+          <tr mat-header-row *matHeaderRowDef="aggregateColumns"></tr>
+          <tr mat-row *matRowDef="let row; columns: aggregateColumns"></tr>
+        </table>
+        <div *ngIf="!loadingAggregates && aggregates.length === 0" class="no-data">
+          No price history available. Click Refresh to load.
+        </div>
+      </div>
+    </mat-card-content>
+  </mat-card>
+</div>

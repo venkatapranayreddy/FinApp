@@ -1,0 +1,419 @@
+.market-dashboard {
+  padding: 24px;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+// Header Section
+.dashboard-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+  gap: 16px;
+
+  h1 {
+    margin: 0;
+    font-size: 28px;
+    font-weight: 500;
+    color: #333;
+  }
+
+  .search-section {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+
+    .search-field {
+      width: 250px;
+    }
+  }
+}
+
+// Main Grid
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  margin-bottom: 24px;
+
+  @media (max-width: 900px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+// Snapshot Card
+.snapshot-card {
+  .snapshot-content {
+    padding: 16px 0;
+  }
+
+  .price-display {
+    text-align: center;
+    margin-bottom: 24px;
+
+    .current-price {
+      font-size: 48px;
+      font-weight: 600;
+      color: #333;
+      display: block;
+    }
+
+    .price-change {
+      font-size: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+
+      mat-icon {
+        font-size: 20px;
+        width: 20px;
+        height: 20px;
+      }
+    }
+  }
+
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    margin-bottom: 24px;
+
+    .stat-item {
+      text-align: center;
+      padding: 12px;
+      background: #f5f5f5;
+      border-radius: 8px;
+
+      .stat-label {
+        display: block;
+        font-size: 12px;
+        color: #666;
+        margin-bottom: 4px;
+        text-transform: uppercase;
+      }
+
+      .stat-value {
+        display: block;
+        font-size: 18px;
+        font-weight: 500;
+        color: #333;
+      }
+    }
+  }
+
+  .action-buttons {
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+  }
+}
+
+// Movers Card
+.movers-card {
+  .movers-content {
+    display: flex;
+    gap: 24px;
+
+    @media (max-width: 600px) {
+      flex-direction: column;
+    }
+  }
+
+  .movers-section {
+    flex: 1;
+
+    .section-title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 14px;
+      font-weight: 500;
+      margin-bottom: 12px;
+
+      mat-icon {
+        font-size: 18px;
+        width: 18px;
+        height: 18px;
+      }
+    }
+  }
+
+  .movers-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .mover-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 10px 12px;
+    background: #f9f9f9;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.2s;
+
+    &:hover {
+      background: #e8e8e8;
+    }
+
+    .mover-ticker {
+      font-weight: 500;
+    }
+
+    .mover-change {
+      font-weight: 600;
+    }
+  }
+}
+
+// Charts Section
+.charts-section {
+  margin-bottom: 24px;
+
+  .section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+
+    h2 {
+      margin: 0;
+      font-size: 22px;
+      font-weight: 500;
+      color: #333;
+    }
+  }
+
+  .chart-row {
+    margin-bottom: 24px;
+
+    &.indicators-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+
+      @media (max-width: 1100px) {
+        grid-template-columns: 1fr;
+      }
+    }
+  }
+
+  .indicator-chart-container {
+    min-height: 250px;
+  }
+
+  .chart-loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 60px;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    gap: 16px;
+
+    span {
+      color: #666;
+      font-size: 14px;
+    }
+
+    &.small {
+      padding: 40px;
+      min-height: 200px;
+    }
+  }
+
+  .no-chart-data {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 80px 40px;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    color: #999;
+
+    mat-icon {
+      font-size: 48px;
+      width: 48px;
+      height: 48px;
+      margin-bottom: 16px;
+      color: #ccc;
+    }
+
+    p {
+      margin: 0;
+      text-align: center;
+      font-size: 14px;
+    }
+
+    &.small {
+      padding: 40px 20px;
+      min-height: 200px;
+
+      mat-icon {
+        font-size: 36px;
+        width: 36px;
+        height: 36px;
+        margin-bottom: 12px;
+      }
+
+      p {
+        font-size: 13px;
+      }
+    }
+  }
+}
+
+// Data Tabs Card
+.data-tabs-card {
+  .tab-content {
+    padding: 24px;
+  }
+
+  .tab-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+
+    h3 {
+      margin: 0;
+      font-size: 18px;
+      font-weight: 500;
+    }
+  }
+}
+
+// Tables
+.data-table {
+  width: 100%;
+
+  th {
+    font-weight: 600;
+    background: #f5f5f5;
+  }
+
+  td, th {
+    padding: 12px 16px;
+  }
+}
+
+// Indicators Grid
+.indicators-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 24px;
+
+  @media (max-width: 900px) {
+    grid-template-columns: 1fr;
+  }
+
+  .indicator-card {
+    background: #f9f9f9;
+    border-radius: 8px;
+    padding: 16px;
+
+    h4 {
+      margin: 0 0 12px 0;
+      font-size: 16px;
+      font-weight: 500;
+      color: #333;
+    }
+
+    &.macd-card {
+      grid-column: span 2;
+
+      @media (max-width: 900px) {
+        grid-column: span 1;
+      }
+    }
+  }
+
+  .indicator-table {
+    width: 100%;
+    background: white;
+    border-radius: 4px;
+
+    th {
+      background: #eee;
+      font-size: 12px;
+    }
+
+    td, th {
+      padding: 8px 12px;
+    }
+  }
+}
+
+// Loading & Empty States
+.loading-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 40px;
+}
+
+.no-data {
+  text-align: center;
+  padding: 40px;
+  color: #666;
+  font-style: italic;
+}
+
+// Color Classes
+.positive {
+  color: #4caf50 !important;
+}
+
+.negative {
+  color: #f44336 !important;
+}
+
+.neutral {
+  color: #666;
+}
+
+.overbought {
+  color: #f44336;
+  font-weight: 600;
+}
+
+.oversold {
+  color: #4caf50;
+  font-weight: 600;
+}
+
+// Snackbar Styles
+::ng-deep {
+  .success-snackbar {
+    background: #4caf50;
+    color: white;
+  }
+
+  .error-snackbar {
+    background: #f44336;
+    color: white;
+  }
+}
+
+// Material Overrides
+mat-card {
+  border-radius: 12px;
+}
+
+mat-card-header {
+  margin-bottom: 16px;
+}
+
+mat-tab-group {
+  .mat-mdc-tab-body-wrapper {
+    min-height: 400px;
+  }
+}
